@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Map Plotter</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        header { padding: 15px; background: #333; color: white; z-index: 1000; }
+        #map { flex-grow: 1; width: 100%; }
+        .controls { margin-top: 10px; }
+        .popup-content img { max-width: 150px; display: block; margin-bottom: 5px; border-radius: 4px; }
+        .popup-content b { font-size: 1.1em; }
+    </style>
+</head>
+<body>
+
+<header>
+    <strong>📸 Photo Map Plotter</strong>
+    <div class="controls">
+        <input type="file" id="upload" accept="image/jpeg" multiple>
+        <small>※位置情報(GPS)が含まれるJPEGを選択してください</small>
+    </div>
+</header>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
+
+<script>
+    // マップの初期化（中心は適当に日本付近に設定）
+    const map = L.map('map').setView([35.6895, 139.6917], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const uploadInput = document.getElementById('upload');
+
+    uploadInput.addEventListener('change', function(e) {
+        const files = e.target.files;
+        if (!files.length) return;
+
+        Array.from(files).forEach(file => {
+            if (file.type !== "image/jpeg") return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const imgData = event.target.result;
+                
+                // Exif情報の解析
+                EXIF.getData(file, function() {
+                    const lat = EXIF.getTag(this, "GPSLatitude");
+                    const lon = EXIF.getTag(this, "GPSLongitude");
+                    const latRef = EXIF.getTag(this, "GPSLatitudeRef") || "N";
+                    const lonRef = EXIF.getTag(this, "GPSLongitudeRef") || "E";
+                    const date = EXIF.getTag(this, "DateTimeOriginal") || "不明";
+
+                    if (lat && lon) {
+                        // 度分秒形式を十進法に変換
+                        const latitude = convertToDegree(lat, latRef);
+                        const longitude = convertToDegree(lon, lonRef);
+
+                        // マーカーを地図に追加
+                        const marker = L.marker([latitude, longitude]).addTo(map);
+                        
+                        // 画像のURLを作成（プレビュー用）
+                        const imageUrl = URL.createObjectURL(file);
+
+                        // ポップアップの設定
+                        const popupHtml = `
+                            <div class="popup-content">
+                                <img src="${imageUrl}" alt="preview">
+                                <b>ファイル名:</b> ${file.name}<br>
+                                <b>撮影日時:</b> ${date}<br>
+                                <b>座標:</b> ${latitude.toFixed(5)}, ${longitude.toFixed(5)}
+                            </div>
+                        `;
+                        marker.bindPopup(popupHtml);
+                    } else {
+                        console.warn(`${file.name} には位置情報が含まれていません。`);
+                    }
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    });
+
+    // Exifの度分秒形式を変換するヘルパー関数
+    function convertToDegree(dms, ref) {
+        let degrees = dms + dms / 60 + dms / 3600;
+        if (ref === "S" || ref === "W") degrees = degrees * -1;
+        return degrees;
+    }
+</script>
+
+</body>
+</html>
