@@ -45,7 +45,7 @@
         }).addTo(map);
 
         // 2. 解析対象とする画像ファイル名のリスト
-        // ※ photo/ フォルダ内にある画像の名前をここに書き加えてください
+        // ※ photos/ フォルダ内にある画像の名前をここに書き加えてください
         const imageFiles = [
             '001.jpg',
             '002.jpg',
@@ -57,7 +57,7 @@
             const markers = [];
 
             for (const fileName of imageFiles) {
-                const imagePath = `photo/${fileName}`;
+                const imagePath = `photos/${fileName}`;
 
                 try {
                     // exifr を使って画像から緯度・経度を取得
