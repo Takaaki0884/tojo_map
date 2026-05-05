@@ -59,7 +59,7 @@
         fetch('spot_parsed.json')
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('JSONの読み込みに失敗しました');
+                    throw new Error(`JSONの読み込みに失敗しました (Status: ${response.status})`);
                 }
                 return response.json();
             })
@@ -67,16 +67,20 @@
                 const markers = [];
 
                 spots.forEach(spot => {
-                    // geoは [緯度, 経度]
-                    const lat = spot.geo;
-                    const lng = spot.geo;
+                    // 緯度経度の安全な取得とバリデーション
+                    if (!spot.geo || !Array.isArray(spot.geo) || spot.geo.length < 2) {
+                        console.warn('位置情報が不正なスポットをスキップしました:', spot);
+                        return; // 該当スポットのみスキップして処理を継続
+                    }
+
+                    const [lat, lng] = spot.geo; // 分割代入でスマートに取得
 
                     // ポップアップに表示するHTMLを構築
                     const popupHTML = `
                         <div class="popup-content">
-                            <h3>${spot.title}</h3>
-                            <img src="${spot.img}" alt="${spot.title}" onerror="this.onerror=null; this.src='https://placehold.co/250x150?text=No+Image';">
-                            <p>${spot.description}</p>
+                            <h3>${spot.title || '無題のスポット'}</h3>
+                            <img src="${spot.img || ''}" alt="${spot.title || ''}" onerror="this.onerror=null; this.src='https://placehold.co/250x150?text=No+Image';">
+                            <p>${spot.description || ''}</p>
                         </div>
                     `;
 
