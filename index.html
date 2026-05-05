@@ -3,28 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exif Photo Map</title>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
+    <title>スポットマップ</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <style>
+        /* 画面全体に地図を表示 */
         html, body {
+            height: 100%;
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
         }
         #map {
             width: 100%;
-            height: 100vh; /* 画面いっぱいに地図を表示 */
+            height: 100%;
         }
-        /* ポップアップ内の画像スタイル */
-        .popup-img {
-            max-width: 200px;
-            max-height: 150px;
-            display: block;
-            margin-top: 5px;
+        /* ポップアップ内のスタイル調整 */
+        .popup-content {
+            max-width: 250px;
+        }
+        .popup-content h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            color: #333;
+        }
+        .popup-content img {
+            width: 100%;
+            height: auto;
             border-radius: 4px;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+        .popup-content p {
+            margin: 0;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -32,74 +45,59 @@
 
     <div id="map"></div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/lite.umd.js"></script>
-
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        // 1. 地図の初期化 (初期表示として日本全体が見えるように設定)
-        const map = L.map('map').setView([36.0, 137.0], 5);
+        // 1. 地図の初期化 (初期表示位置は兵庫県加東市周辺に設定)
+        const map = L.map('map').setView([34.894, 135.075], 13);
 
-        // OpenStreetMapの背景地図タイルを読み込む
+        // 2. 背景地図タイルの読み込み (OpenStreetMap)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // 2. 解析対象とする画像ファイル名のリスト
-        // ※ photos/ フォルダ内にある画像の名前をここに書き加えてください
-        const imageFiles = [
-            'IMG_9685.jpg',
-            'IMG_9686.jpg',
-            'IMG_9697.jpg',
-            'IMG_9630.jpg',
-            'IMG_9683.jpg'
-        ];
-
-        // 3. 各画像を読み込んでExifから位置情報を取得し、マーカーを設置する関数
-        async function loadImagesOnMap() {
-            const markers = [];
-
-            for (const fileName of imageFiles) {
-                const imagePath = `photos/${fileName}`;
-
-                try {
-                    // exifr を使って画像から緯度・経度を取得
-                    const gps = await exifr.gps(imagePath);
-
-                    if (gps && gps.latitude && gps.longitude) {
-                        const { latitude, longitude } = gps;
-
-                        // 地図上にマーカーを設置
-                        const marker = L.marker([latitude, longitude]).addTo(map);
-
-                        // マーカーをクリックしたときに表示されるポップアップを登録
-                        // 画像をクリックすると、別タブで元画像が開くようにリンク化しています
-                        const popupContent = `
-                            <div>
-                                <strong>${fileName}</strong><br>
-                                <a href="${imagePath}" target="_blank">
-                                    <img src="${imagePath}" class="popup-img" alt="${fileName}">
-                                </a>
-                            </div>
-                        `;
-                        marker.bindPopup(popupContent);
-                        markers.push(marker);
-                    } else {
-                        console.warn(`位置情報が見つかりません: ${fileName}`);
-                    }
-                } catch (error) {
-                    console.error(`画像の解析に失敗しました: ${fileName}`, error);
+        // 3. JSONデータを読み込んでピン（マーカー）を配置
+        fetch('spot_parsed.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('JSONの読み込みに失敗しました');
                 }
-            }
+                return response.json();
+            })
+            .then(spots => {
+                const markers = [];
 
-            // マーカーが1つ以上あれば、すべてのマーカーが画面に収まるように自動で地図のズームを調整
-            if (markers.length > 0) {
-                const group = new L.featureGroup(markers);
-                map.fitBounds(group.getBounds().pad(0.1));
-            }
-        }
+                spots.forEach(spot => {
+                    // geoは [緯度, 経度]
+                    const lat = spot.geo;
+                    const lng = spot.geo;
 
-        // 実行
-        loadImagesOnMap();
+                    // ポップアップに表示するHTMLを構築
+                    const popupHTML = `
+                        <div class="popup-content">
+                            <h3>${spot.title}</h3>
+                            <img src="${spot.img}" alt="${spot.title}" onerror="this.onerror=null; this.src='https://placehold.co/250x150?text=No+Image';">
+                            <p>${spot.description}</p>
+                        </div>
+                    `;
+
+                    // マーカーを作成して地図に追加
+                    const marker = L.marker([lat, lng])
+                        .bindPopup(popupHTML)
+                        .addTo(map);
+
+                    markers.push(marker);
+                });
+
+                // すべてのピンが画面に収まるように自動で地図のズーム・位置を調整
+                if (markers.length > 0) {
+                    const group = new L.featureGroup(markers);
+                    map.fitBounds(group.getBounds().pad(0.1));
+                }
+            })
+            .catch(error => {
+                console.error('エラーが発生しました:', error);
+                alert('データの読み込み中にエラーが発生しました。詳細はコンソールを確認してください。');
+            });
     </script>
 </body>
 </html>
