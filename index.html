@@ -93,7 +93,7 @@
                     const popupHTML = `
                         <div class="popup-content">
                             <h3>${spot.title || '無題のスポット'}</h3>
-                            <img src="${spot.img || ''}" alt="${spot.title || ''}" onerror="this.onerror=null; this.src='https://placehold.co/250x150?text=No+Image';">
+                            <img src="photos/${spot.img || ''}" alt="${spot.title || ''}" onerror="this.onerror=null; this.src='https://placehold.co/250x150?text=No+Image';">
                             <p>${spot.description || ''}</p>
                         </div>
                     `;
